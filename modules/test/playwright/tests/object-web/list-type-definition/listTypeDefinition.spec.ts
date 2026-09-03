@@ -92,14 +92,6 @@ async function importPicklistFromFile(
 
 	await expect(page.getByLabel('External Reference Code')).not.toBeEmpty();
 
-	// Clicking Import fires a reference code check and then either imports and
-	// reloads the page, or, when the reference code already exists, asks about
-	// overwriting instead. Returning at the click leaves that chain in flight,
-	// and the caller's next navigation cancels it, so the picklist is silently
-	// never imported. Wait for whichever outcome the click reaches: the reload
-	// only ever happens after the import commits, and the overwrite prompt is
-	// the caller's to answer.
-
 	const importNavigation = page.waitForNavigation({waitUntil: 'load'}).then(
 		() => 'imported',
 		() => null
@@ -1126,7 +1118,6 @@ test.describe('manage picklists inside the picklists portlet', () => {
 	test('ensure picklist entry keys starting with upper case are correctly rendered in the entries', async ({
 		apiHelpers,
 		listTypeDefinitionPage,
-		page,
 	}) => {
 		const listTypeDefinition: ListTypeDefinition =
 			await apiHelpers.listTypeAdmin.postRandomListTypeDefinition();
@@ -1158,39 +1149,26 @@ test.describe('manage picklists inside the picklists portlet', () => {
 
 		const [responseEntries]: ListTypeEntry[] = response.listTypeEntries;
 
-		const frameElement = await page.$('iframe');
-		const frame = await frameElement.contentFrame();
-		await frame.waitForLoadState('networkidle');
-
-		const listTypeDefinitionHeader =
-			await listTypeDefinitionPage.frameLocator
-				.locator('.fds th')
-				.allInnerTexts();
-
-		const listTypeDefinitionContent =
-			await listTypeDefinitionPage.frameLocator
-				.locator('.fds td')
-				.allInnerTexts();
-
-		const listTypeDefinitionHeaderTemplate = [
+		const listTypeDefinitionHeaders = [
 			'Name',
 			'Key',
 			'External Reference Code',
 		];
 
-		const listTypeDefinitionContentTemplate = [
+		const listTypeDefinitionEntry = [
 			listTypeDefinitionEntryName,
 			listTypeDefinitionEntryKey,
 			responseEntries.externalReferenceCode,
 		];
 
-		for (let i = 0; i < 3; i++) {
-			expect(listTypeDefinitionHeaderTemplate[i]).toBe(
-				listTypeDefinitionHeader[i]
-			);
-			expect(listTypeDefinitionContentTemplate[i]).toBe(
-				listTypeDefinitionContent[i]
-			);
+		for (let i = 0; i < listTypeDefinitionHeaders.length; i++) {
+			await expect(
+				listTypeDefinitionPage.frameLocator.locator('.fds th').nth(i)
+			).toHaveText(listTypeDefinitionHeaders[i]);
+
+			await expect(
+				listTypeDefinitionPage.frameLocator.locator('.fds td').nth(i)
+			).toHaveText(listTypeDefinitionEntry[i]);
 		}
 	});
 

@@ -120,22 +120,24 @@ test.describe('Manage object fields through Model Builder', () => {
 			await apiHelpers.listTypeAdmin.getListTypeDefinitions()
 		).items;
 
-		const allListTypeDefinitions = existingListTypeDefinitions.concat(
-			await Promise.all(
-				Array(22)
-					.fill(null)
-					.map(
-						async () =>
-							await apiHelpers.listTypeAdmin.postRandomListTypeDefinition()
-					)
-			)
+		const createdListTypeDefinitions = await Promise.all(
+			Array(22)
+				.fill(null)
+				.map(
+					async () =>
+						await apiHelpers.listTypeAdmin.postRandomListTypeDefinition()
+				)
 		);
 
-		allListTypeDefinitions.forEach(({id}) =>
+		createdListTypeDefinitions.forEach(({id}) =>
 			apiHelpers.data.push({
 				id,
 				type: 'listTypeDefinition',
 			})
+		);
+
+		const allListTypeDefinitions = existingListTypeDefinitions.concat(
+			createdListTypeDefinitions
 		);
 
 		await modelBuilderDiagramPage.goto({objectFolderName: 'Default'});
@@ -367,6 +369,10 @@ test.describe('Manage object fields through Model Builder', () => {
 			.click();
 
 		const picklistFieldName = 'picklistField' + getRandomInt();
+
+		await expect(page.getByPlaceholder('Text to translate...')).toHaveValue(
+			objectFields[0].label['en_US']
+		);
 
 		await page
 			.getByPlaceholder('Text to translate...')
@@ -703,6 +709,10 @@ test.describe('Manage object fields through Model Builder', () => {
 					.getByText(objectFieldLabel, {exact: true})
 					.click();
 
+				await expect(page.getByText('LabelMandatory')).toHaveValue(
+					objectFieldLabel
+				);
+
 				await page.getByText('LabelMandatory').fill(updatedFieldLabel);
 
 				await modelBuilderLeftSidebarPage.clickSideBarItem(
@@ -903,17 +913,9 @@ test.describe('Manage object fields through Model Builder', () => {
 
 		await page.getByText('Encrypted', {exact: true}).click();
 
-		const pagePromise = page.waitForEvent('popup');
-
-		await page.getByRole('link', {name: 'Learn more.'}).click();
-
-		const newPage = await pagePromise;
-
 		await expect(
-			newPage.getByRole('heading', {
-				name: 'Localizing Object Definitions',
-			})
-		).toBeVisible();
+			page.getByRole('link', {name: 'Learn more.'})
+		).toHaveAttribute('href', /localizing-object-definitions-and-entries/);
 	});
 
 	test('read only configuration is displayed in the fields advanced tab', async ({
@@ -1601,7 +1603,7 @@ test.describe('Manage objectFields through Objects Admin UI', () => {
 			objectFieldLabel,
 		});
 
-		await page.getByRole('link', {name: objectFieldLabel}).click();
+		await objectFieldsPage.openObjectField(objectFieldLabel);
 
 		await objectFieldsPage.iframeLocator
 			.getByLabel('LabelMandatory')
@@ -2364,20 +2366,9 @@ test.describe('Manage objectFields through Objects Admin UI', () => {
 
 		await objectFieldsPage.openObjectField(objectFields[0].label['en_US']);
 
-		const pagePromise = page.waitForEvent('popup');
-
-		await page
-			.frameLocator('iframe')
-			.getByRole('link', {name: 'Learn more.'})
-			.click();
-
-		const newPage = await pagePromise;
-
 		await expect(
-			newPage.getByRole('heading', {
-				name: 'Localizing Object Definitions',
-			})
-		).toBeVisible();
+			page.frameLocator('iframe').getByRole('link', {name: 'Learn more.'})
+		).toHaveAttribute('href', /localizing-object-definitions-and-entries/);
 	});
 });
 
@@ -2528,14 +2519,17 @@ test.describe('Create Object Fields', () => {
 
 		await page.getByRole('button', {name: 'Cancel'}).click();
 
-		await page
+		await expect(objectFieldsPage.objectFieldLabelInput).toBeHidden();
+
+		const searchInput = page
 			.getByRole('search')
-			.getByRole('searchbox', {name: 'Search'})
-			.fill('Cancel Field');
+			.getByRole('searchbox', {name: 'Search'});
+
+		await searchInput.fill('Cancel Field');
 
 		await waitForSearchToBeReady(page);
 
-		await page.keyboard.press('Enter');
+		await searchInput.press('Enter');
 
 		await expect(page.getByText('No Results Found')).toBeVisible();
 	});
@@ -2830,11 +2824,6 @@ test.describe('Manage object fields default value properties', () => {
 				});
 
 				booleanFieldName = objectFields[0].label['en_US'];
-
-				// An isolated folder keeps the diagram to this one definition, so
-				// the node is fitted into view; the Default folder holds every
-				// system definition and pushes the node's controls under the
-				// right sidebar, which Playwright cannot scroll away.
 
 				const objectFolder =
 					await apiHelpers.objectAdmin.postRandomObjectFolder();
@@ -3481,11 +3470,6 @@ test.describe('Manage object fields default value properties', () => {
 				objectFieldBusinessTypes: ['Text'],
 			});
 
-			// An isolated folder keeps the diagram to this one definition, so
-			// the node is fitted into view; the Default folder holds every
-			// system definition and pushes the node's controls out of the
-			// canvas viewport, which Playwright cannot scroll.
-
 			const objectFolder =
 				await apiHelpers.objectAdmin.postRandomObjectFolder();
 
@@ -3599,11 +3583,6 @@ test.describe('Manage object fields default value properties', () => {
 			const objectFields = generateObjectFields({
 				objectFieldBusinessTypes: ['Text'],
 			});
-
-			// An isolated folder keeps the diagram to this one definition, so
-			// the node is fitted into view; the Default folder holds every
-			// system definition and pushes the node's controls out of the
-			// canvas viewport, which Playwright cannot scroll.
 
 			const objectFolder =
 				await apiHelpers.objectAdmin.postRandomObjectFolder();

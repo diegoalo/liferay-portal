@@ -10,7 +10,7 @@
  */
 
 module.exports = {
-	hash: '24aa43ec5dabe28f0554d2074fa6511856dca3b3251e2c15c8709fb794b3e064',
+	hash: '467ac0099519ff22879ec914974a02f77fa1feaeaee4a747559b71725855a662',
 	imports: {
 		'@liferay/accessibility-menu-web': [],
 		'@liferay/accessibility-settings-state-web': [],
@@ -191,6 +191,8 @@ module.exports = {
 			'text-mask-core',
 			'ua-parser-js',
 		],
+		'@liferay/frontend-js-image-editor-sample-web': [],
+		'@liferay/frontend-js-image-editor-web': [],
 		'@liferay/frontend-js-importmaps-extender': [],
 		'@liferay/frontend-js-item-selector-sample-web': [],
 		'@liferay/frontend-js-item-selector-web': [],
@@ -230,6 +232,7 @@ module.exports = {
 		'@liferay/layout-type-controller-panel': [],
 		'@liferay/layout-utility-page-terms-of-use': [],
 		'@liferay/liferay-cms-theme': [],
+		'@liferay/liferay-prism-theme': [],
 		'@liferay/locked-items-web': [],
 		'@liferay/login-web': [],
 		'@liferay/map-common': [],
@@ -261,6 +264,7 @@ module.exports = {
 		'@liferay/portal-workflow-taglib': [],
 		'@liferay/product-analytics-web': [],
 		'@liferay/product-navigation-control-menu-theme-contributor': [],
+		'@liferay/product-navigation-omni-search-web': [],
 		'@liferay/product-navigation-product-menu-theme-contributor': [],
 		'@liferay/product-navigation-site-administration': [],
 		'@liferay/product-navigation-user-personal-bar-web': [],

@@ -48,6 +48,7 @@ const (
 	conditionReplicasCountValid    = "ReplicasCountValid"
 	entitlementsSecretSuffix       = "-entitlements"
 	environmentLabel               = "licensing.liferay.com/environment"
+	fieldOwner                     = "liferay-dxp-operator"
 	gracePeriodReplicaCeiling      = 1
 	identitySecretSuffix           = "-identity"
 )
@@ -277,7 +278,7 @@ func (liferayEnvironmentReconciler *LiferayEnvironmentReconciler) enforceGracePe
 		return nil
 	}
 
-	if error := liferayEnvironmentReconciler.enforceReplicaCeiling(
+	if _, error := liferayEnvironmentReconciler.enforceReplicaCeiling(
 		context, liferayEnvironment, gracePeriodReplicaCeiling,
 	); error != nil {
 		return error
@@ -330,7 +331,78 @@ func (liferayEnvironmentReconciler *LiferayEnvironmentReconciler) enforceLicense
 
 	liferayEnvironment.Status.License.Checksum = licenseChecksum(entitlements.LicenseXML)
 	liferayEnvironment.Status.License.LastVerified = &now
-	liferayEnvironment.Status.License.MaxClusterNodes = entitlements.MaxClusterNodes
+
+	owner, error := license.Owner(entitlements.LicenseXML)
+
+	if error != nil {
+		logger.Error(error, "License validation failed", "environmentID", environmentID)
+
+		liferayEnvironment.Status.License.MaxClusterNodes = nil
+		liferayEnvironment.Status.License.ValidUntil = nil
+
+		meta.SetStatusCondition(
+			&liferayEnvironment.Status.Conditions,
+			metav1.Condition{
+				Message: error.Error(),
+				Reason:  "Invalid",
+				Status:  metav1.ConditionFalse,
+				Type:    conditionLicenseValid,
+			},
+		)
+
+		liferayEnvironment.Status.Phase = "Degraded"
+
+		return liferayEnvironmentReconciler.finishAfter(
+			context, liferayEnvironment, liferayEnvironmentReconciler.HeartbeatInterval,
+		)
+	}
+
+	if owner != environmentID {
+		logger.Info(
+			"License was issued for a different environment",
+			"environmentID", environmentID, "owner", owner,
+		)
+
+		blocked := int32(0)
+
+		liferayEnvironment.Status.License.MaxClusterNodes = &blocked
+		liferayEnvironment.Status.License.ValidUntil = nil
+
+		meta.SetStatusCondition(
+			&liferayEnvironment.Status.Conditions,
+			metav1.Condition{
+				Message: fmt.Sprintf(
+					"License owner %q does not match this environment %q.",
+					owner, environmentID,
+				),
+				Reason: "EnvironmentMismatch",
+				Status: metav1.ConditionFalse,
+				Type:   conditionLicenseValid,
+			},
+		)
+
+		liferayEnvironment.Status.Phase = "Degraded"
+
+		requeueAfter, error := liferayEnvironmentReconciler.enforceReplicaCeiling(
+			context, liferayEnvironment, 0,
+		)
+
+		if error != nil {
+			return controllerruntime.Result{}, error
+		}
+
+		if requeueAfter == 0 {
+			requeueAfter = liferayEnvironmentReconciler.HeartbeatInterval
+		}
+
+		return liferayEnvironmentReconciler.finishAfter(
+			context, liferayEnvironment, requeueAfter,
+		)
+	}
+
+	maxClusterNodes := entitlements.MaxClusterNodes
+
+	liferayEnvironment.Status.License.MaxClusterNodes = &maxClusterNodes
 
 	expirationDate, error := license.ExpirationDate(entitlements.LicenseXML)
 
@@ -395,37 +467,23 @@ func (liferayEnvironmentReconciler *LiferayEnvironmentReconciler) enforceLicense
 		},
 	)
 
-	if error := liferayEnvironmentReconciler.enforceReplicaCeiling(
+	requeueAfter, error := liferayEnvironmentReconciler.enforceReplicaCeiling(
 		context, liferayEnvironment, entitlements.MaxClusterNodes,
-	); error != nil {
+	)
+
+	if error != nil {
 		return controllerruntime.Result{}, error
 	}
 
-	return controllerruntime.Result{}, nil
+	return controllerruntime.Result{RequeueAfter: requeueAfter}, nil
 }
 
 func (liferayEnvironmentReconciler *LiferayEnvironmentReconciler) enforceReplicaCeiling(
 	context context.Context,
 	liferayEnvironment *licensingv1alpha1.LiferayEnvironment,
 	maxClusterNodes int32,
-) error {
+) (time.Duration, error) {
 	logger := logf.FromContext(context)
-
-	if maxClusterNodes <= 0 {
-		liferayEnvironment.Status.EffectiveReplicas = nil
-
-		meta.SetStatusCondition(
-			&liferayEnvironment.Status.Conditions,
-			metav1.Condition{
-				Message: "The licensed maximum cluster node count is not yet known.",
-				Reason:  "MaxClusterNodesUnknown",
-				Status:  metav1.ConditionUnknown,
-				Type:    conditionReplicasCountValid,
-			},
-		)
-
-		return nil
-	}
 
 	statefulSet := &appsv1.StatefulSet{}
 
@@ -447,7 +505,7 @@ func (liferayEnvironmentReconciler *LiferayEnvironmentReconciler) enforceReplica
 			&liferayEnvironment.Status.Conditions,
 			metav1.Condition{
 				Message: fmt.Sprintf(
-					"Workload StatefulSet %q was not found.",
+					"Workload StatefulSet %q does not exist.",
 					liferayEnvironment.Spec.WorkloadRef.Name,
 				),
 				Reason: "WorkloadNotFound",
@@ -456,11 +514,11 @@ func (liferayEnvironmentReconciler *LiferayEnvironmentReconciler) enforceReplica
 			},
 		)
 
-		return nil
+		return 0, nil
 	}
 
 	if getError != nil {
-		return getError
+		return 0, getError
 	}
 
 	desiredReplicas := resolveDesiredReplicas(liferayEnvironment, statefulSet)
@@ -468,10 +526,43 @@ func (liferayEnvironmentReconciler *LiferayEnvironmentReconciler) enforceReplica
 	effectiveReplicas := min(desiredReplicas, maxClusterNodes)
 
 	if statefulSet.Spec.Replicas == nil || *statefulSet.Spec.Replicas != effectiveReplicas {
+		liveReplicas := statefulSet.Spec.Replicas
+
+		if error := liferayEnvironmentReconciler.Status().Update(context, liferayEnvironment); error != nil {
+			return 0, error
+		}
+
 		statefulSet.Spec.Replicas = &effectiveReplicas
 
-		if error := liferayEnvironmentReconciler.Update(context, statefulSet); error != nil {
-			return error
+		if error := liferayEnvironmentReconciler.Update(
+			context, statefulSet, client.FieldOwner(fieldOwner),
+		); error != nil {
+			logger.Error(
+				error, "Unable to enforce the licensed replica ceiling",
+				"effectiveReplicas", effectiveReplicas,
+				"workload", statefulSet.Name,
+			)
+
+			liferayEnvironment.Status.EffectiveReplicas = liveReplicas
+
+			meta.SetStatusCondition(
+				&liferayEnvironment.Status.Conditions,
+				metav1.Condition{
+					Message: fmt.Sprintf(
+						"Unable to scale StatefulSet %q to %d replicas: %s.",
+						statefulSet.Name, effectiveReplicas, error,
+					),
+					Reason: "WorkloadUpdateRejected",
+					Status: metav1.ConditionFalse,
+					Type:   conditionReplicasCountValid,
+				},
+			)
+
+			if error := liferayEnvironmentReconciler.Status().Update(context, liferayEnvironment); error != nil {
+				return 0, error
+			}
+
+			return liferayEnvironmentReconciler.RetryInitialDelay, nil
 		}
 
 		logger.Info(
@@ -499,7 +590,7 @@ func (liferayEnvironmentReconciler *LiferayEnvironmentReconciler) enforceReplica
 			},
 		)
 
-		return nil
+		return 0, nil
 	}
 
 	meta.SetStatusCondition(
@@ -511,7 +602,7 @@ func (liferayEnvironmentReconciler *LiferayEnvironmentReconciler) enforceReplica
 		},
 	)
 
-	return nil
+	return 0, nil
 }
 
 func (liferayEnvironmentReconciler *LiferayEnvironmentReconciler) ensureIdentity(
@@ -617,6 +708,32 @@ func (liferayEnvironmentReconciler *LiferayEnvironmentReconciler) environmentDir
 	namespace string,
 ) string {
 	return filepath.Join(liferayEnvironmentReconciler.MarketplaceMountPath, namespace)
+}
+
+func extractLiferayImageTag(image string) string {
+	if index := strings.LastIndex(image, "@"); index != -1 {
+		image = image[:index]
+	}
+
+	index := strings.LastIndex(image, ":")
+
+	if index == -1 {
+		return ""
+	}
+
+	repository := image[:index]
+
+	if !strings.HasSuffix(repository, "liferay/dxp") {
+		return ""
+	}
+
+	tag := image[index+1:]
+
+	if strings.Contains(tag, "/") {
+		return ""
+	}
+
+	return tag
 }
 
 func (liferayEnvironmentReconciler *LiferayEnvironmentReconciler) finishAfter(
@@ -745,7 +862,7 @@ func (liferayEnvironmentReconciler *LiferayEnvironmentReconciler) handleOnlineAc
 	entitlements, error := liferayEnvironmentReconciler.Provisioning.Manifest(
 		context,
 		provisioning.ManifestRequest{
-			DxpVersion:    liferayEnvironmentReconciler.resolveDxpVersion(liferayEnvironment),
+			DxpVersion:    liferayEnvironmentReconciler.resolveDxpVersion(context, liferayEnvironment),
 			EnvironmentID: environmentID,
 		},
 		privateKey,
@@ -971,13 +1088,42 @@ func resolveDesiredReplicas(
 }
 
 func (liferayEnvironmentReconciler *LiferayEnvironmentReconciler) resolveDxpVersion(
+	context context.Context,
 	liferayEnvironment *licensingv1alpha1.LiferayEnvironment,
 ) string {
 	if liferayEnvironment.Spec.DxpVersion != "" {
 		return liferayEnvironment.Spec.DxpVersion
 	}
 
-	// TODO derive from the workload's container image tag
+	logger := logf.FromContext(context)
+
+	statefulSet := &appsv1.StatefulSet{}
+
+	if error := liferayEnvironmentReconciler.Get(
+		context, types.NamespacedName{
+			Name:      liferayEnvironment.Spec.WorkloadRef.Name,
+			Namespace: liferayEnvironment.Namespace,
+		}, statefulSet); error != nil {
+		logger.V(1).Info(
+			"Unable to read the workload to determine the DXP version",
+			"workload", liferayEnvironment.Spec.WorkloadRef.Name,
+		)
+
+		return ""
+	}
+
+	for _, container := range statefulSet.Spec.Template.Spec.Containers {
+		dxpVersion := extractLiferayImageTag(container.Image)
+
+		if dxpVersion != "" {
+			return dxpVersion
+		}
+	}
+
+	logger.V(1).Info(
+		"The workload carries no image tag to determine the DXP version from",
+		"workload", liferayEnvironment.Spec.WorkloadRef.Name,
+	)
 
 	return ""
 }

@@ -133,7 +133,16 @@ test.describe('Manage object definitions through Model Builder', () => {
 			const objectDefinitionLabel =
 				'ObjectDefinitionLabel' + getRandomInt();
 
-			modelBuilderLeftSidebarPage.createNewObjectDefinitionButton.click();
+			await modelBuilderLeftSidebarPage.createNewObjectDefinitionButton.click();
+
+			const objectDefinitionResponsePromise =
+				modelBuilderDiagramPage.page.waitForResponse((response) =>
+					response
+						.url()
+						.includes(
+							'/object-definitions/by-external-reference-code/'
+						)
+				);
 
 			const objectDefinition =
 				await modalAddObjectDefinitionPage.createObjectDefinition(
@@ -144,6 +153,8 @@ test.describe('Manage object definitions through Model Builder', () => {
 				id: objectDefinition.id,
 				type: 'objectDefinition',
 			});
+
+			await objectDefinitionResponsePromise;
 
 			const rightSidebar =
 				modelBuilderRightSidebarPage.getRightSidebarLocator(
@@ -249,7 +260,7 @@ test.describe('Manage object definitions through Model Builder', () => {
 			objectDefinition1.label['en_US']
 		);
 
-		await modelBuilderObjectDefinitionNodePage.deleteObjectDefinitionOption.click();
+		await modelBuilderObjectDefinitionNodePage.deleteDraftObjectDefinition();
 
 		apiHelpers.data.splice(
 			apiHelpers.data.findIndex(
@@ -1265,10 +1276,15 @@ test.describe('Manage object definitions through View Object Definitions', () =>
 					await editObjectDetailsPage.entryTitleField.textContent()
 				)?.trim() ?? '';
 
+			const entryTitleFieldName =
+				originalEntryTitleField === 'Screen Name'
+					? 'Email Address'
+					: 'Screen Name';
+
 			await editObjectDetailsPage.entryTitleField.click();
 
 			await page
-				.getByRole('option', {exact: true, name: 'Screen Name'})
+				.getByRole('option', {exact: true, name: entryTitleFieldName})
 				.click();
 
 			await editObjectDetailsPage.saveObjectDefinition();
@@ -1278,14 +1294,8 @@ test.describe('Manage object definitions through View Object Definitions', () =>
 			await editObjectDetailsPage.goToDetailsTab();
 
 			await expect(editObjectDetailsPage.entryTitleField).toContainText(
-				'Screen Name'
+				entryTitleFieldName
 			);
-
-			// User is a system object shared by the whole run, so put its title
-			// field back the way it was found. Left on Screen Name, a later
-			// execution opens the dropdown with that option already selected and
-			// waits on it until the test times out, so the test can otherwise
-			// only pass once per environment.
 
 			await editObjectDetailsPage.entryTitleField.click();
 
@@ -2437,7 +2447,7 @@ test.describe('Manage object definitions through View Object Definitions', () =>
 				objectDefinition.name
 			);
 
-			expect(
+			await expect(
 				page.getByRole('switch', {name: 'Activate Object'})
 			).not.toBeChecked();
 

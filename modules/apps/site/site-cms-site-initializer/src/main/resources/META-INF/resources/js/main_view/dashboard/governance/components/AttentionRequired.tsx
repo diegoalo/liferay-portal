@@ -5,14 +5,15 @@
 
 import ClayLayout from '@clayui/layout';
 import {navigate} from 'frontend-js-web';
-import React, {useContext, useEffect, useState} from 'react';
+import React, {useContext} from 'react';
 
 import {SectionHeader} from '../../common/SectionHeader';
 import InteractiveCard, {
 	MetricColor,
 } from '../../performance/components/InteractiveCard';
 import {GovernanceContext} from '../GovernanceContext';
-import GovernanceService, {AssetStatistics} from '../GovernanceService';
+import {AssetStatistics} from '../GovernanceService';
+import getCMSSectionURL from '../getCMSSectionURL';
 
 type AttentionCard = {
 	color: MetricColor;
@@ -37,7 +38,7 @@ const ATTENTION_CARDS: AttentionCard[] = [
 		description: Liferay.Language.get(
 			'these-are-expired-assets-across-the-selected-spaces'
 		),
-		icon: 'warning-full',
+		icon: 'warning',
 		statKey: 'expiredCount',
 		title: Liferay.Language.get('expired-assets'),
 	},
@@ -55,42 +56,30 @@ const ATTENTION_CARDS: AttentionCard[] = [
 		description: Liferay.Language.get(
 			'these-are-assets-with-pending-workflows-across-the-selected-spaces'
 		),
-		icon: 'flag-empty',
+		icon: 'workflow',
 		statKey: 'pendingCount',
 		title: Liferay.Language.get('pending-workflows'),
 	},
 ];
 
 const SECTION_PATHS: Partial<Record<keyof AssetStatistics, string>> = {
+	brokenLinksCount: 'broken-links',
 	expiredCount: 'expired-assets',
 	pendingCount: 'pending-workflows',
 	reviewDateOverdueCount: 'overdue-reviews',
 };
 
 export function AttentionRequired() {
-	const [loading, setLoading] = useState(true);
-	const {space} = useContext(GovernanceContext);
-	const [statistics, setStatistics] = useState<AssetStatistics>();
+	const {
+		loadingStatistics: loading,
+		space,
+		statistics,
+	} = useContext(GovernanceContext);
 
 	const title = Liferay.Language.get('attention-required');
 
-	useEffect(() => {
-		async function fetchStatistics() {
-			setLoading(true);
-
-			const {data} = await GovernanceService.getAssetStatistics(
-				space.value === 'all' ? undefined : space.value
-			);
-
-			setStatistics(data ?? undefined);
-			setLoading(false);
-		}
-
-		fetchStatistics();
-	}, [space]);
-
 	const openSection = (path: string) => {
-		const url = `${Liferay.ThemeDisplay.getPathFriendlyURLPublic()}/cms/${path}`;
+		const url = getCMSSectionURL(path);
 
 		navigate(space.siteId ? `${url}?groupId=${space.siteId}` : url);
 	};

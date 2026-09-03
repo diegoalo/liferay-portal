@@ -42,7 +42,7 @@ import org.osgi.service.component.annotations.Reference;
 )
 @Generated("")
 @OpenAPIDefinition(
-	info = @Info(description = "Manages typed relationships between PIM entities.. A Java client JAR is available for use with the group ID 'com.liferay', artifact ID 'com.liferay.headless.pim.client', and version '1.0.0'.", license = @License(name = "Apache 2.0", url = "http://www.apache.org/licenses/LICENSE-2.0.html"), title = "Liferay Headless PIM", version = "v1.0")
+	info = @Info(description = "Manages typed relationships between PIM entities.. A Java client JAR is available for use with the group ID 'com.liferay', artifact ID 'com.liferay.headless.pim.client', and version '1.0.2'.", license = @License(name = "Apache 2.0", url = "http://www.apache.org/licenses/LICENSE-2.0.html"), title = "Liferay Headless PIM", version = "v1.0")
 )
 @Path("/v1.0")
 public class OpenAPIResourceImpl {
@@ -87,9 +87,11 @@ public class OpenAPIResourceImpl {
 		{
 			add(LinkResourceImpl.class);
 
+			add(LinkReferenceResourceImpl.class);
+
 			add(OpenAPIResourceImpl.class);
 		}
 	};
 
 }
-// LIFERAY-REST-BUILDER-HASH:-116577612
+// LIFERAY-REST-BUILDER-HASH:-371887615

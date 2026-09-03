@@ -11,7 +11,6 @@ import path from 'path';
 import {gotoWithRetry} from '../../utils/gotoWithRetry';
 import {PORTLET_URLS} from '../../utils/portletUrls';
 import {getTempDir} from '../../utils/temp';
-import {waitForAlert} from '../../utils/waitForAlert';
 import {waitForSearchToBeReady} from '../../utils/waitForSearchToBeReady';
 
 export class ViewObjectDefinitionsPage {
@@ -93,14 +92,36 @@ export class ViewObjectDefinitionsPage {
 	async changeObjectActivateStatus(objectDefinitionName: string) {
 		await this.clickEditObjectDefinitionLink(objectDefinitionName);
 
-		await this.page.getByRole('switch', {name: 'Activate Object'}).click();
+		const saveButton = this.page.getByRole('button', {name: 'Save'});
 
-		await this.page.getByRole('button', {name: 'Save'}).click();
+		const toggle = this.page.getByRole('switch', {
+			name: 'Activate Object',
+		});
 
-		await waitForAlert(
-			this.page,
-			`Success:The object was saved successfully.`
+		await expect(saveButton).toBeEnabled();
+
+		const toggled = await toggle.isChecked();
+
+		await toggle.click();
+
+		await expect(toggle).toBeChecked({checked: !toggled});
+
+		const saveResponse = this.page.waitForResponse(
+			(response) =>
+				response
+					.url()
+					.includes(
+						'/o/object-admin/v1.0/object-definitions/by-external-reference-code/'
+					) && response.request().method() === 'PUT'
 		);
+
+		const reload = this.page.waitForEvent('load', {timeout: 10000});
+
+		await saveButton.click();
+
+		await saveResponse;
+
+		await reload;
 	}
 
 	async clickEditObjectDefinitionLink(
@@ -152,7 +173,20 @@ export class ViewObjectDefinitionsPage {
 
 		await modal.getByRole('textbox').fill(name);
 
+		const reloadResponse = this.page.waitForResponse(
+			(response) =>
+				response
+					.url()
+					.includes('/o/object-admin/v1.0/object-definitions?') &&
+				response.request().method() === 'GET' &&
+				response.status() === 200
+		);
+
 		await modal.getByRole('button', {exact: true, name: 'Delete'}).click();
+
+		const response = await reloadResponse;
+
+		await response.finished();
 	}
 
 	async deleteObjectFolder(objectFolderName: string) {
@@ -239,11 +273,6 @@ export class ViewObjectDefinitionsPage {
 		await this.page
 			.getByRole('button', {exact: true, name: 'Import'})
 			.click();
-
-		// The import is done when the listing request behind it answers, and a
-		// definition carrying many fields can take longer to import than the
-		// modal is given to disappear below. Wait for that answer first, so the
-		// modal is only timed once the work it is covering has finished.
 
 		const response = await responsePromise;
 

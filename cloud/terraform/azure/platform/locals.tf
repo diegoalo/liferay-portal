@@ -50,10 +50,15 @@ locals {
 		name="external-secrets"
 		namespace="external-secrets-system"
 	}
+	keda_enabled=var.keda_config.enabled && var.observability_config.enabled
 	resource_group_name=var.deployment_name
 	system_node_pool_vm_size=one([
 		for agent_pool_profile in data.azurerm_kubernetes_cluster.aks.agent_pool_profile :
 		agent_pool_profile.vm_size
 		if agent_pool_profile.name == "system"
 	])
+	tags={
+		deployment=var.deployment_name
+		region=var.region
+	}
 }

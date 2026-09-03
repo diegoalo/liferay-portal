@@ -10,7 +10,6 @@ import (
 	controller "github.com/liferay/liferay-portal/cloud/operator/internal/controller"
 	licensing "github.com/liferay/liferay-portal/cloud/operator/internal/controller/licensing"
 	provisioning "github.com/liferay/liferay-portal/cloud/operator/internal/provisioning"
-	licensingwebhook "github.com/liferay/liferay-portal/cloud/operator/internal/webhook/licensing"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -18,7 +17,6 @@ import (
 	healthz "sigs.k8s.io/controller-runtime/pkg/healthz"
 	zap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
-	admission "sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 func init() {
@@ -87,20 +85,6 @@ func main() {
 
 		os.Exit(1)
 	}
-
-	manager.GetWebhookServer().Register(
-		licensingwebhook.WebhookPath,
-		&admission.Webhook{
-			Handler: &licensingwebhook.StatefulSetScaleValidator{
-				Client:  manager.GetClient(),
-				Decoder: admission.NewDecoder(manager.GetScheme()),
-			},
-		},
-	)
-
-	controller.SetupLog.Info(
-		"Registered validating webhook", "path", licensingwebhook.WebhookPath,
-	)
 
 	controller.SetupLog.Info(
 		"Starting manager",

@@ -218,20 +218,26 @@ test(
 				objectLayoutTabName: 'Field Tab',
 			});
 
-			await objectLayoutsPage.createObjectRelationshipTab(
-				objectLayoutName,
-				'Relationship Tab',
-				objectRelationship.label['en_US']
-			);
+			const {reload} =
+				await objectLayoutsPage.createObjectRelationshipTab(
+					objectLayoutName,
+					'Relationship Tab',
+					objectRelationship.label['en_US']
+				);
+
+			await reload;
 
 			await editObjectDetailsPage.goto(parentObjectDefinition.name);
 
-			await editObjectDetailsPage.saveButton.click();
+			const {reload: detailsReload} =
+				await editObjectDetailsPage.saveObjectDefinitionReturningReload();
 
 			await waitForAlert(
 				page,
 				'Success:The object was saved successfully.'
 			);
+
+			await detailsReload;
 		});
 
 		const gotoRelationshipTab = async () => {

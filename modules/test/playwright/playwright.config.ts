@@ -105,6 +105,7 @@ import {config as frontendJsAuiWebSearchContainerSelectConfig} from './tests/fro
 import {config as frontendJsBootstrapSupportWebConfig} from './tests/frontend-js-bootstrap-support-web/main/config';
 import {config as frontendJsClayWebConfig} from './tests/frontend-js-clay-web/main/config';
 import {config as frontendJsComponentsWebConfig} from './tests/frontend-js-components-web/main/config';
+import {config as frontendJsImageEditorWebConfig} from './tests/frontend-js-image-editor-web/main/config';
 import {config as frontendJsItemSelectorWebConfig} from './tests/frontend-js-item-selector-web/main/config';
 import {config as frontendJsSpaWebConfig} from './tests/frontend-js-spa-web/main/config';
 import {config as frontendJsWebConfig} from './tests/frontend-js-web/main/config';
@@ -123,6 +124,7 @@ import {config as layoutAdminWebConfig} from './tests/layout-admin-web/main/conf
 import {config as layoutContentPageEditorWebFormContainerConfig} from './tests/layout-content-page-editor-web/form-container/config';
 import {config as layoutContentPageEditorWebFragmentsConfig} from './tests/layout-content-page-editor-web/fragments/config';
 import {config as layoutContentPageEditorWebConfig} from './tests/layout-content-page-editor-web/main/config';
+import {config as layoutContentWebConfig} from './tests/layout-content-web/main/config';
 import {config as layoutLockedLayoutsWebConfig} from './tests/layout-locked-layouts-web/main/config';
 import {config as layoutPageTemplateAdminWebConfig} from './tests/layout-page-template-admin-web/main/config';
 import {config as layoutSetPrototypeWebConfig} from './tests/layout-set-prototype-web/main/config';
@@ -171,9 +173,12 @@ import {config as osbFaroWebSettingsConfig} from './tests/osb-faro-web/settings/
 import {config as passwordPoliciesAdminWebFirstLoginConfig} from './tests/password-policies-admin-web/first-login/config';
 import {config as passwordPoliciesAdminWebConfig} from './tests/password-policies-admin-web/main/config';
 import {config as passwordPoliciesAdminWebSetupAdminConfig} from './tests/password-policies-admin-web/setup-admin/config';
+import {config as portalDbInfrastructureUpgradeConfig} from './tests/portal-db-infrastructure/upgrade/config';
 import {config as portalDefaultPermissionsWebConfig} from './tests/portal-default-permissions-web/main/config';
 import {config as portalImplMainConfig} from './tests/portal-impl/main/config';
 import {config as portalImplPortletConfig} from './tests/portal-impl/portlet/config';
+import {config as portalInstancesWebDatabasePartitionConfig} from './tests/portal-instances-web/main-database-partition/config';
+import {config as portalInstancesWebConfig} from './tests/portal-instances-web/main/config';
 import {config as portalLanguageOverrideWebClientExtensionConfig} from './tests/portal-language-override-web/client-extension/config';
 import {config as portalLanguageOverrideWebConfig} from './tests/portal-language-override-web/main/config';
 import {config as portalSearchAdminWebConfig} from './tests/portal-search-admin-web/main/config';
@@ -210,7 +215,10 @@ import {config as searchExperiencesWebConfig} from './tests/search-experiences-w
 import {config as segmentExperimentWebConfig} from './tests/segment-experiment-web/main/config';
 import {config as segmentsWebConfig} from './tests/segments-web/main/config';
 import {config as seoStudioWebConfig} from './tests/seo-studio-web/main/config';
+import {config as serverAdminWebDatabaseMigrationConfig} from './tests/server-admin-web/database-migration/config';
 import {config as serverAdminWebConfig} from './tests/server-admin-web/main/config';
+import {config as imageEditorFeatureFlagConfig} from './tests/setup/image-editor-feature-flag/main/config';
+import {config as imageEditorFeatureFlagTeardownConfig} from './tests/setup/image-editor-feature-flag/teardown/config';
 import {config as pageManagementSiteConfig} from './tests/setup/page-management-site/main/config';
 import {config as pageManagementSiteTeardownConfig} from './tests/setup/page-management-site/teardown/config';
 import {config as seoStudioSiteConfig} from './tests/setup/seo-studio-site/main/config';
@@ -251,6 +259,8 @@ import {config as commerceWorkspaceConfig} from './tests/workspaces/liferay-work
 import {config as marketplaceConfig} from './tests/workspaces/liferay-workspace-marketplace/main/config';
 
 const setupProjects = [
+	imageEditorFeatureFlagConfig,
+	imageEditorFeatureFlagTeardownConfig,
 	pageManagementSiteConfig,
 	pageManagementSiteTeardownConfig,
 	seoStudioSiteConfig,
@@ -366,6 +376,7 @@ export default defineConfig({
 		frontendJsBootstrapSupportWebConfig,
 		frontendJsClayWebConfig,
 		frontendJsComponentsWebConfig,
+		frontendJsImageEditorWebConfig,
 		frontendJsItemSelectorWebConfig,
 		frontendJsSpaWebConfig,
 		frontendJsWebConfig,
@@ -384,6 +395,7 @@ export default defineConfig({
 		layoutContentPageEditorWebConfig,
 		layoutContentPageEditorWebFormContainerConfig,
 		layoutContentPageEditorWebFragmentsConfig,
+		layoutContentWebConfig,
 		layoutLockedLayoutsWebConfig,
 		layoutPageTemplateAdminWebConfig,
 		layoutSetPrototypeWebConfig,
@@ -433,9 +445,12 @@ export default defineConfig({
 		passwordPoliciesAdminWebConfig,
 		passwordPoliciesAdminWebFirstLoginConfig,
 		passwordPoliciesAdminWebSetupAdminConfig,
+		portalDbInfrastructureUpgradeConfig,
 		portalDefaultPermissionsWebConfig,
 		portalImplMainConfig,
 		portalImplPortletConfig,
+		portalInstancesWebConfig,
+		portalInstancesWebDatabasePartitionConfig,
 		portalLanguageOverrideWebClientExtensionConfig,
 		portalLanguageOverrideWebConfig,
 		portalSearchAdminWebConfig,
@@ -474,6 +489,7 @@ export default defineConfig({
 		segmentsWebConfig,
 		seoStudioWebConfig,
 		serverAdminWebConfig,
+		serverAdminWebDatabaseMigrationConfig,
 		siteAdminWebConfig,
 		siteCmpSiteInitializerConfig,
 		siteCmsSiteInitializerConfig,
